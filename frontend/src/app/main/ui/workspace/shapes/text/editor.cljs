@@ -106,6 +106,7 @@
         (mf/use-callback
          (mf/deps shape state)
          (fn [event]
+           (js/console.log "on-blur")
            (dom/stop-propagation event)
            (dom/prevent-default event)
            (reset! blured true)))
@@ -114,6 +115,7 @@
         (mf/use-callback
          (mf/deps shape state)
          (fn [event]
+           (js/console.log "on-focus")
            (reset! blured false)))
 
         on-change
@@ -143,7 +145,7 @@
     [:div.text-editor
      {:ref self-ref
       :style {:cursor cur/text}
-      :on-click (st/emitf (dwt/focus-editor))
+      ;; :on-click (st/emitf (dwt/focus-editor))
       :class (dom/classnames
               :align-top    (= (:vertical-align content "top") "top")
               :align-center (= (:vertical-align content) "center")

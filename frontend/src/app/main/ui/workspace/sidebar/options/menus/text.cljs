@@ -68,7 +68,7 @@
   [:grow-type])
 
 (def root-attrs
-  (d/concat text-valign-attrs text-align-attrs))
+  (d/concat text-valign-attrs))
 
 (def paragraph-attrs
   (d/concat text-align-attrs
@@ -134,6 +134,8 @@
 
 (mf/defc vertical-align
   [{:keys [shapes ids values on-change] :as props}]
+  (prn "vertical-align" values)
+
   (let [{:keys [vertical-align]} values
         vertical-align (or vertical-align "top")
         handle-change

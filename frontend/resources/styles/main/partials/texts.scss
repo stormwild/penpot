@@ -16,20 +16,41 @@ foreignObject {
   }
 
   .text-editor {
-    .DraftEditor-root {
+    .public-DraftEditor-content[contenteditable=true] {
+      -webkit-user-modify: read-write-plaintext-only;
+    }
+    .DraftEditor-editorContainer {
+      position: relative;
+      z-index: 1;
+    }
+
+    .public-DraftEditor-content {
       height: 100%;
       display: flex;
       flex-direction: column;
     }
 
+    .DraftEditor-editorContainer {
+      height: 100%;
+      // display: flex;
+      // flex-direction: column;
+    }
+
+    .DraftEditor-root {
+      height: 100%;
+      position: relative;
+      // display: flex;
+      // flex-direction: column;
+    }
+
     &.align-top {
-      .DraftEditor-root {
+      .public-DraftEditor-content > div {
         justify-content: flex-start;
       }
     }
 
     &.align-center {
-      .DraftEditor-root {
+      .public-DraftEditor-content > div {
         justify-content: center;
       }
     }
