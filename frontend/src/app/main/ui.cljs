@@ -139,7 +139,10 @@
       :dashboard-libraries
       :dashboard-team-members
       :dashboard-team-settings)
-     [:& dashboard {:route route}]
+     [:*
+      [:div.modal-wrapper
+       [:& app.main.ui.onboarding/release-notes-modal {}]]
+      [:& dashboard {:route route}]]
 
      :viewer
      (let [index   (get-in route [:query-params :index])

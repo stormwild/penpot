@@ -182,22 +182,6 @@
 (s/def ::team-form
   (s/keys :req-un [::name]))
 
-(defn- on-success
-  [form response]
-  (st/emit! (modal/hide)
-            (rt/nav :dashboard-projects {:team-id (:id response)})))
-
-(defn- on-error
-  [form response]
-  (st/emit! (dm/error "Error on creating team.")))
-
-(defn- on-submit
-  [form event]
-  (let [mdata  {:on-success (partial on-success form)
-                :on-error   (partial on-error form)}
-        params {:name (get-in @form [:clean-data :name])}]
-    (st/emit! (dd/create-team (with-meta params mdata)))))
-
 (mf/defc onboarding-team-modal
   {::mf/register modal/components
    ::mf/register-as :onboarding-team}
@@ -205,9 +189,25 @@
   (let [close (mf/use-fn (st/emitf (modal/hide)))
         form  (fm/use-form :spec ::team-form
                            :initial {})
+        on-success
+        (mf/use-callback
+         (fn [form response]
+           (st/emit! (modal/hide)
+                     (rt/nav :dashboard-projects {:team-id (:id response)}))))
+
+        on-error
+        (mf/use-callback
+         (fn [form response]
+           (st/emit! (dm/error "Error on creating team."))))
 
         on-submit
-        (mf/use-callback (partial on-submit form))]
+        (mf/use-callback
+         (fn [form event]
+           (let [mdata  {:on-success (partial on-success form)
+                         :on-error   (partial on-error form)}
+                 params {:name (get-in @form [:clean-data :name])}]
+             (st/emit! (dd/create-team (with-meta params mdata))))))]
+
     [:div.modal-overlay
      [:div.modal-container.onboarding.final.animated.fadeInUp
       [:div.modal-left
@@ -222,6 +222,7 @@
                    :label "Enter new team name"}]
         [:& fm/submit-button
          {:label "Create team"}]]]
+
       [:div.modal-right
        [:img {:src "images/onboarding-start.jpg" :border "0" :alt "Start designing"}]
        [:h2 "Start designing"]
@@ -232,3 +233,71 @@
       [:img.deco {:src "images/deco-left.png" :border "0"}]
       [:img.deco.right {:src "images/deco-right.png" :border "0"}]]]))
 
+
+;;; --- RELEASE NOTES MODAL
+
+(mf/defc release-notes-modal
+  {::mf/register modal/components
+   ::mf/register-as :release-notes}
+  [props]
+  (let [slide (mf/use-state 0)
+        klass (mf/use-state "fadeInDown")
+
+        navigate
+        (mf/use-callback #(reset! slide %))
+
+        ;; skip
+        ;; (mf/use-callback
+        ;;  (st/emitf (modal/hide)
+        ;;            (modal/show {:type :onboarding-team})
+        ;;            (du/mark-onboarding-as-viewed)))
+        ]
+
+    (mf/use-layout-effect
+     (mf/deps @slide)
+     (fn []
+       (when (not= :start @slide)
+         (reset! klass "fadeIn"))
+       (let [sem (tm/schedule 300 #(reset! klass nil))]
+         (fn []
+           (reset! klass nil)
+           (tm/dispose! sem)))))
+
+    (case @slide
+      0
+      [:div.modal-overlay
+       [:div.animated {:class @klass}
+        [:div.modal-container.onboarding.feature
+         [:div.modal-left
+          [:img {:src "images/on-handoff.gif" :border "0" :alt "Handoff and lowcode"}]]
+         [:div.modal-right
+          [:div.modal-title
+           [:h2 "text 1"]]
+          [:div.modal-content
+           [:p "text 1 a"]
+           [:p "text 1 b"]]
+          [:div.modal-navigation
+           [:button.btn-secondary {:on-click #(navigate 1)} "Start"]
+           [:& navigation-bullets
+            {:slide @slide
+             :navigate navigate
+             :total 4}]]]]]]
+
+      1
+      [:div.modal-overlay
+       [:div.animated {:class @klass}
+        [:div.modal-container.onboarding.feature
+         [:div.modal-left
+          [:img {:src "images/on-handoff.gif" :border "0" :alt "Handoff and lowcode"}]]
+         [:div.modal-right
+          [:div.modal-title
+           [:h2 "text 2"]]
+          [:div.modal-content
+           [:p "text 2 a"]
+           [:p "text 2 b"]]
+          [:div.modal-navigation
+           [:button.btn-secondary {:on-click #(navigate 0)} "Next"]
+           [:& navigation-bullets
+            {:slide @slide
+             :navigate navigate
+             :total 4}]]]]]])))
