@@ -19,9 +19,12 @@
    [app.util.dom :as dom]
    [app.util.router :as rt]
    [app.util.timers :as tm]
+   [app.util.object :as obj]
    [cljs.spec.alpha :as s]
    [rumext.alpha :as mf]))
 
+
+;; --- ONBOARDING LIGHTBOX
 
 (mf/defc navigation-bullets
   [{:keys [slide navigate total]}]
@@ -236,22 +239,36 @@
 
 ;;; --- RELEASE NOTES MODAL
 
+(defmulti render-release-notes :version)
+
 (mf/defc release-notes-modal
   {::mf/register modal/components
    ::mf/register-as :release-notes}
-  [props]
-  (let [slide (mf/use-state 0)
+  [{:keys [version] :as props}]
+  (let [slide (mf/use-state :start)
         klass (mf/use-state "fadeInDown")
 
         navigate
         (mf/use-callback #(reset! slide %))
 
-        ;; skip
-        ;; (mf/use-callback
-        ;;  (st/emitf (modal/hide)
-        ;;            (modal/show {:type :onboarding-team})
-        ;;            (du/mark-onboarding-as-viewed)))
+        next
+        (mf/use-callback
+         (mf/deps slide)
+         (fn []
+           (if (= @slide :start)
+             (navigate 0)
+             (navigate (inc @slide)))))
+
+        finish
+        (mf/use-callback
+         (st/emitf (modal/hide)
+                   (du/mark-onboarding-as-viewed {:version version})))
         ]
+
+    (mf/use-effect
+     (mf/deps)
+     (fn []
+       (st/emitf (du/mark-onboarding-as-viewed {:version version}))))
 
     (mf/use-layout-effect
      (mf/deps @slide)
@@ -263,101 +280,115 @@
            (reset! klass nil)
            (tm/dispose! sem)))))
 
-    (case @slide
-      0
-      [:div.modal-overlay
-       [:div.animated {:class @klass}
-        [:div.modal-container.onboarding.feature
-         [:div.modal-left
-          [:img {:src "images/login-on.jpg" :border "0" :alt "What's new Alpha release 1.4.0"}]]
-         [:div.modal-right
-          [:div.modal-title
-           [:h2 "What's new?"]]
-          [:span.release "Alpha version 1.4.0"]
-          [:div.modal-content
-           [:p "Penpot continues growing with new features that improve performance, user experience and visual design."]
-           [:p "We are happy to show you a sneak peak of the most important stuff that the Alpha 1.4.0 version brings."]]
-          [:div.modal-navigation
-           [:button.btn-secondary {:on-click #(navigate 1)} "Continue"]
-           [:& navigation-bullets
-            {:slide @slide
-             :navigate navigate
-             :total 4}]]]
-         [:img.deco {:src "images/deco-left.png" :border "0"}]
-         [:img.deco.right {:src "images/deco-right.png" :border "0"}]]]]
+    (render-release-notes
+     {:next next
+      :navigate navigate
+      :finish finish
+      :klass klass
+      :slide slide
+      :version version})))
 
-      1
-      [:div.modal-overlay
-       [:div.animated {:class @klass}
-        [:div.modal-container.onboarding.feature
-         [:div.modal-left
-          [:img {:src "images/features/select-files.gif" :border "0" :alt "New file selection"}]]
-         [:div.modal-right
-          [:div.modal-title
-           [:h2 "New file selection and open files"]]
-          [:div.modal-content
-           [:p "Now you can select files with left click and make multi-selections holding down the shift + left click."]
-           [:p "To open a file you just have to double click it. You can also open a file in a new tab with right click."]]
-          [:div.modal-navigation
-           [:button.btn-secondary {:on-click #(navigate 2)} "Continue"]
-           [:& navigation-bullets
-            {:slide @slide
-             :navigate navigate
-             :total 4}]]]]]]
-             
-      2
-      [:div.modal-overlay
-       [:div.animated {:class @klass}
-        [:div.modal-container.onboarding.feature
-         [:div.modal-left
-          [:img {:src "images/features/manage-files.gif" :border "0" :alt "Manage files"}]]
-         [:div.modal-right
-          [:div.modal-title
-           [:h2 "New files/projects management"]]
-          [:div.modal-content
-           [:p "Penpot now allows to duplicate and move files and projects."]
-           [:p "Also, now you have an easy way to manage files and projects between teams."]]
-          [:div.modal-navigation
-           [:button.btn-secondary {:on-click #(navigate 3)} "Continue"]
-           [:& navigation-bullets
-            {:slide @slide
-             :navigate navigate
-             :total 4}]]]]]]
-             
-      3
-      [:div.modal-overlay
-       [:div.animated {:class @klass}
-        [:div.modal-container.onboarding.feature
-         [:div.modal-left
-          [:img {:src "images/features/rtl.gif" :border "0" :alt "RTL support"}]]
-         [:div.modal-right
-          [:div.modal-title
-           [:h2 "RTL support is now available!"]]
-          [:div.modal-content
-           [:p "Diversity and inclusion is one major Penpot concern and that's why we love to give support to RTL languages, unlike in most of design tools."]
-           [:p "If you write in arabic, hebrew or other RTL language text direction will be automatically detected in text layers."]]
-          [:div.modal-navigation
-           [:button.btn-secondary {:on-click #(navigate 4)} "Continue"]
-           [:& navigation-bullets
-            {:slide @slide
-             :navigate navigate
-             :total 4}]]]]]]
+;; This case should never happen; but if happen just hide inmediatelly
+;; the modal.
+(defmethod render-release-notes :default
+  [props]
+  (tm/schedule 0 #(st/emit! (modal/hide)))
+  (mf/html [:span ""]))
 
-      4
-      [:div.modal-overlay
-       [:div.animated {:class @klass}
-        [:div.modal-container.onboarding.feature
-         [:div.modal-left
-          [:img {:src "images/features/blend-modes.gif" :border "0" :alt "Blend modes"}]]
-         [:div.modal-right
-          [:div.modal-title
-           [:h2 "New layer opacity and blend modes"]]
-          [:div.modal-content
-           [:p "Combining elements visually is an important part of the design process."]
-           [:p "This is why the standard blend modes and opacity level are now available for each element."]]
-          [:div.modal-navigation
-           [:button.btn-secondary {:on-click #(navigate 0)} "Start!"]
-           [:& navigation-bullets
-            {:slide @slide
-             :navigate navigate
-             :total 4}]]]]]])))
+(defmethod render-release-notes "1.4"
+  [{:keys [slide klass next finish navigate version]}]
+  (mf/html
+   (case @slide
+     :start
+     [:div.modal-overlay
+      [:div.animated {:class @klass}
+       [:div.modal-container.onboarding.feature
+        [:div.modal-left
+         [:img {:src "images/login-on.jpg" :border "0" :alt "What's new Alpha release 1.4.0"}]]
+        [:div.modal-right
+         [:div.modal-title
+          [:h2 "What's new?"]]
+         [:span.release "Alpha version " version]
+         [:div.modal-content
+          [:p "Penpot continues growing with new features that improve performance, user experience and visual design."]
+          [:p "We are happy to show you a sneak peak of the most important stuff that the Alpha 1.4.0 version brings."]]
+         [:div.modal-navigation
+          [:button.btn-secondary {:on-click next} "Continue"]]]
+        [:img.deco {:src "images/deco-left.png" :border "0"}]
+        [:img.deco.right {:src "images/deco-right.png" :border "0"}]]]]
+
+     0
+     [:div.modal-overlay
+      [:div.animated {:class @klass}
+       [:div.modal-container.onboarding.feature
+        [:div.modal-left
+         [:img {:src "images/features/select-files.gif" :border "0" :alt "New file selection"}]]
+        [:div.modal-right
+         [:div.modal-title
+          [:h2 "New file selection and open files"]]
+         [:div.modal-content
+          [:p "Now you can select files with left click and make multi-selections holding down the shift + left click."]
+          [:p "To open a file you just have to double click it. You can also open a file in a new tab with right click."]]
+         [:div.modal-navigation
+          [:button.btn-secondary {:on-click next} "Continue"]
+          [:& navigation-bullets
+           {:slide @slide
+            :navigate navigate
+            :total 4}]]]]]]
+
+     1
+     [:div.modal-overlay
+      [:div.animated {:class @klass}
+       [:div.modal-container.onboarding.feature
+        [:div.modal-left
+         [:img {:src "images/features/manage-files.gif" :border "0" :alt "Manage files"}]]
+        [:div.modal-right
+         [:div.modal-title
+          [:h2 "New files/projects management"]]
+         [:div.modal-content
+          [:p "Penpot now allows to duplicate and move files and projects."]
+          [:p "Also, now you have an easy way to manage files and projects between teams."]]
+         [:div.modal-navigation
+          [:button.btn-secondary {:on-click next} "Continue"]
+          [:& navigation-bullets
+           {:slide @slide
+            :navigate navigate
+            :total 4}]]]]]]
+
+     2
+     [:div.modal-overlay
+      [:div.animated {:class @klass}
+       [:div.modal-container.onboarding.feature
+        [:div.modal-left
+         [:img {:src "images/features/rtl.gif" :border "0" :alt "RTL support"}]]
+        [:div.modal-right
+         [:div.modal-title
+          [:h2 "RTL support is now available!"]]
+         [:div.modal-content
+          [:p "Diversity and inclusion is one major Penpot concern and that's why we love to give support to RTL languages, unlike in most of design tools."]
+          [:p "If you write in arabic, hebrew or other RTL language text direction will be automatically detected in text layers."]]
+         [:div.modal-navigation
+          [:button.btn-secondary {:on-click next} "Continue"]
+          [:& navigation-bullets
+           {:slide @slide
+            :navigate navigate
+            :total 4}]]]]]]
+
+     3
+     [:div.modal-overlay
+      [:div.animated {:class @klass}
+       [:div.modal-container.onboarding.feature
+        [:div.modal-left
+         [:img {:src "images/features/blend-modes.gif" :border "0" :alt "Blend modes"}]]
+        [:div.modal-right
+         [:div.modal-title
+          [:h2 "New layer opacity and blend modes"]]
+         [:div.modal-content
+          [:p "Combining elements visually is an important part of the design process."]
+          [:p "This is why the standard blend modes and opacity level are now available for each element."]]
+         [:div.modal-navigation
+          [:button.btn-secondary {:on-click finish} "Start!"]
+          [:& navigation-bullets
+           {:slide @slide
+            :navigate navigate
+            :total 4}]]]]]])))
