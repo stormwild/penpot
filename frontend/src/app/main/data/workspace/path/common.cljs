@@ -15,10 +15,14 @@
 (defn init-path []
   (ptk/reify ::init-path))
 
+(defn clean-edit-state
+  [state]
+  (dissoc state :last-point :prev-handler :drag-handler :preview))
+
 (defn finish-path [source]
   (ptk/reify ::finish-path
     ptk/UpdateEvent
     (update [_ state]
       (let [id (st/get-path-id state)]
         (-> state
-            (update-in [:workspace-local :edit-path id] st/clean-edit-state))))))
+            (update-in [:workspace-local :edit-path id] clean-edit-state))))))

@@ -179,13 +179,7 @@
                      (and (not alt?) match-opposite?))))))
           (rx/concat (rx/of (apply-content-modifiers)))))))))
 
-
-(defn stop-path-edit []
-  (ptk/reify ::stop-path-edit
-    ptk/UpdateEvent
-    (update [_ state]
-      (let [id (get-in state [:workspace-local :edition])]
-        (update state :workspace-local dissoc :edit-path id)))))
+(declare stop-path-edit)
 
 (defn start-path-edit
   [id]
@@ -213,3 +207,10 @@
               (rx/filter #(= % :interrupt))
               (rx/take 1)
               (rx/map #(stop-path-edit))))))))
+
+(defn stop-path-edit []
+  (ptk/reify ::stop-path-edit
+    ptk/UpdateEvent
+    (update [_ state]
+      (let [id (get-in state [:workspace-local :edition])]
+        (update state :workspace-local dissoc :edit-path id)))))

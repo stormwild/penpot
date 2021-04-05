@@ -29,6 +29,4 @@
        [:workspace-drawing :object])
      path)))
 
-(defn clean-edit-state
-  [state]
-  (dissoc state :last-point :prev-handler :drag-handler :preview))
+

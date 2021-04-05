@@ -67,16 +67,18 @@
                             (comp (map (comp gpt/point :params))
                                   (filter selected-point?))
                             content)]
-        (-> state
-            (assoc-in [:workspace-local :edit-path id :selected-points] positions))))))
+        (cond-> state
+          (some? id)
+          (assoc-in [:workspace-local :edit-path id :selected-points] positions))))))
 
 (defn select-node [position shift?]
   (ptk/reify ::select-node
     ptk/UpdateEvent
     (update [_ state]
       (let [id (get-in state [:workspace-local :edition])]
-        (-> state
-            (assoc-in [:workspace-local :edit-path id :selected-points] #{position}))))))
+        (cond-> state
+          (some? id)
+          (assoc-in [:workspace-local :edit-path id :selected-points] #{position}))))))
 
 (defn deselect-node [position shift?]
   (ptk/reify ::deselect-node

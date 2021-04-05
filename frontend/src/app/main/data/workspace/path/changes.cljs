@@ -17,12 +17,14 @@
    [beicon.core :as rx]
    [potok.core :as ptk]))
 
-(defn generate-path-changes [page-id shape old-content new-content]
+(defn generate-path-changes
+  "Generates content changes and the undos for the content given"
+  [page-id shape old-content new-content]
   (us/verify ::spec/content old-content)
   (us/verify ::spec/content new-content)
   (let [shape-id (:id shape)
-        [old-points old-selrect] (helpers/points->components shape old-content)
-        [new-points new-selrect] (helpers/points->components shape new-content)
+        [old-points old-selrect] (helpers/content->points+selrect shape old-content)
+        [new-points new-selrect] (helpers/content->points+selrect shape new-content)
 
         rch [{:type :mod-obj
               :id shape-id

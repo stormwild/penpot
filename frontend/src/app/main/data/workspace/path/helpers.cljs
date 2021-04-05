@@ -23,16 +23,15 @@
 ;; CONSTANTS
 (defonce enter-keycode 13)
 
-
-;; PRIVATE METHODS
-
 (defn end-path-event? [{:keys [type shift] :as event}]
   (or (= (ptk/type event) ::common/finish-path)
       (= (ptk/type event) :esc-pressed)
       (= event :interrupt) ;; ESC
       (and (ms/mouse-double-click? event))))
 
-(defn- points->components [shape content]
+(defn content->points+selrect
+  "Given the content of a shape, calculate its points and selrect"
+  [shape content]
   (let [transform (:transform shape (gmt/matrix))
         transform-inverse (:transform-inverse shape (gmt/matrix))
         center (gsh/center-shape shape)
@@ -64,11 +63,12 @@
       (assoc shape :points points :selrect selrect))
 
     (let [content (:content shape)
-          [points selrect] (points->components shape content)]
+          [points selrect] (content->points+selrect shape content)]
       (assoc shape :points points :selrect selrect))))
 
 
-(defn closest-angle [angle]
+(defn closest-angle
+  [angle]
   (cond
     (or  (> angle 337.5)  (<= angle 22.5))  0
     (and (> angle 22.5)   (<= angle 67.5))  45
@@ -109,7 +109,8 @@
         (update :content (fnil conj []) command)
         (update-selrect))))
 
-(defn move-handler-modifiers [content index prefix match-opposite? dx dy]
+(defn move-handler-modifiers
+  [content index prefix match-opposite? dx dy]
   (let [[cx cy] (if (= prefix :c1) [:c1x :c1y] [:c2x :c2y])
         [ocx ocy] (if (= prefix :c1) [:c2x :c2y] [:c1x :c1y])
         opposite-index (ugp/opposite-index content index prefix)]
