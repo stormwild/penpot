@@ -48,7 +48,9 @@
              middle-click? (= 2 (.-which event))
 
              frame? (= :frame type)
-             selected? (contains? selected id)]
+             selected? (contains? selected id)
+
+             drawing-path? (= :draw (get-in edit-path [edition :edit-mode]))]
 
          (when middle-click?
            (dom/prevent-default bevent)
@@ -63,7 +65,8 @@
            (when (and (or (not edition) (not= edition id)) (not blocked) (not hidden) (not (#{:comments :path} drawing-tool)))
                           (not= edition id))
                       (not blocked)
-                      (not hidden))
+                      (not hidden)
+                      (not drawing-path?))
              (cond
                drawing-tool
                (st/emit! (dd/start-drawing drawing-tool))
