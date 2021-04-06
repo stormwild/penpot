@@ -37,7 +37,7 @@
   [{:keys [next] :as props}]
   [:div.modal-container.onboarding
    [:div.modal-left
-    [:img {:src "images/pot.png" :border "0" :alt "Penpot"}]]
+    [:img {:src "images/login-on.jpg" :border "0" :alt "Penpot"}]]
    [:div.modal-right
     [:div.modal-title
      [:h2 "Welcome to Penpot!"]]

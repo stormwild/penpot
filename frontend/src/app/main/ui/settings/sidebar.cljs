@@ -74,6 +74,13 @@
         i/tree
         [:span.element-title (tr "labels.settings")]]
 
+       [:hr]
+
+       [:li {:class (when options? "current")
+             :on-click go-settings-options}
+        i/msg-info
+        [:span.element-title (tr "labels.release")]]
+
        (when cfg/feedback-enabled
          [:li {:class (when feedback? "current")
                :on-click go-settings-feedback}
