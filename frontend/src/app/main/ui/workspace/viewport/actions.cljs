@@ -62,10 +62,10 @@
            (when (and (not= edition id) text-editing?)
              (st/emit! dw/clear-edition-mode))
 
-           (when (and (or (not edition) (not= edition id)) (not blocked) (not hidden) (not (#{:comments :path} drawing-tool)))
-                          (not= edition id))
+           (when (and (or (not edition) (not= edition id))
                       (not blocked)
                       (not hidden)
+                      (not (#{:comments :path} drawing-tool))
                       (not drawing-path?))
              (cond
                drawing-tool
