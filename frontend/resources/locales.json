@@ -2245,6 +2245,13 @@
     },
     "unused" : true
   },
+  "labels.create" : {
+    "translations" : {
+      "en" : "Create",
+      "es" : "Crear"
+    },
+    "used-in" : [ "src/app/main/ui/workspace/sidebar/assets.cljs" ]
+  },
   "labels.create-team" : {
     "translations" : {
       "de" : "Neues Team erstellen",
@@ -3920,6 +3927,34 @@
       "zh_cn" : "图形"
     },
     "used-in" : [ "src/app/main/ui/workspace/sidebar/assets.cljs", "src/app/main/ui/workspace/sidebar/assets.cljs" ]
+  },
+  "workspace.assets.group" : {
+    "translations" : {
+      "en" : "Group",
+      "es" : "Agrupar"
+    },
+    "used-in" : [ "src/app/main/ui/workspace/sidebar/assets.cljs" ]
+  },
+  "workspace.assets.create-group" : {
+    "translations" : {
+      "en" : "Create a group",
+      "es" : "Crear un grupo"
+    },
+    "used-in" : [ "src/app/main/ui/workspace/sidebar/assets.cljs" ]
+  },
+  "workspace.assets.group-name" : {
+    "translations" : {
+      "en" : "Group name",
+      "es" : "Nombre del grupo"
+    },
+    "used-in" : [ "src/app/main/ui/workspace/sidebar/assets.cljs" ]
+  },
+  "workspace.assets.create-group-hint" : {
+    "translations" : {
+      "en" : "Your items are going to be named automatically as \"group name / item name\"",
+      "es" : "Tus elementos se renombrarán automáticamente a \"nombre grupo / nombre elemento\""
+    },
+    "used-in" : [ "src/app/main/ui/workspace/sidebar/assets.cljs" ]
   },
   "workspace.assets.libraries" : {
     "translations" : {

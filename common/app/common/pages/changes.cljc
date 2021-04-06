@@ -367,21 +367,24 @@
 ;; -- Components
 
 (defmethod process-change :add-component
-  [data {:keys [id name shapes]}]
+  [data {:keys [id name path shapes]}]
   (assoc-in data [:components id]
             {:id id
              :name name
+             :path path
              :objects (d/index-by :id shapes)}))
 
 (defmethod process-change :mod-component
   [data {:keys [id name objects]}]
-  (update-in data [:components id]
-             #(cond-> %
-                (some? name)
-                (assoc :name name)
+  (let [[path name] (cph/parse-path-name name)]
+    (update-in data [:components id]
+               #(cond-> %
+                  (some? name)
+                  (assoc :name name
+                         :path path)
 
-                (some? objects)
-                (assoc :objects objects))))
+                  (some? objects)
+                  (assoc :objects objects)))))
 
 (defmethod process-change :del-component
   [data {:keys [id]}]

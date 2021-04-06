@@ -19,6 +19,7 @@
 (s/def ::frame-id uuid?)
 (s/def ::id uuid?)
 (s/def ::name string?)
+(s/def ::path string?)
 (s/def ::page-id uuid?)
 (s/def ::parent-id uuid?)
 (s/def ::string string?)
@@ -550,7 +551,8 @@
   (s/coll-of ::shape))
 
 (defmethod change-spec :add-component [_]
-  (s/keys :req-un [::id ::name :internal.changes.add-component/shapes]))
+  (s/keys :req-un [::id ::name :internal.changes.add-component/shapes]
+          :opt-un [::path]))
 
 (defmethod change-spec :mod-component [_]
   (s/keys :req-un [::id]

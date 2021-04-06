@@ -10,6 +10,7 @@
 (ns app.main.ui.workspace.sidebar.assets
   (:require
    [app.common.data :as d]
+   [app.common.spec :as us]
    [app.common.geom.point :as gpt]
    [app.common.geom.shapes :as geom]
    [app.common.media :as cm]
@@ -29,6 +30,7 @@
    [app.main.ui.components.context-menu :refer [context-menu]]
    [app.main.ui.components.editable-label :refer [editable-label]]
    [app.main.ui.components.file-uploader :refer [file-uploader]]
+   [app.main.ui.components.forms :as fm]
    [app.main.ui.components.tab-container :refer [tab-container tab-element]]
    [app.main.ui.context :as ctx]
    [app.main.ui.icons :as i]
@@ -40,9 +42,69 @@
    [app.util.keyboard :as kbd]
    [app.util.router :as rt]
    [app.util.timers :as timers]
+   [cljs.spec.alpha :as s]
    [cuerdas.core :as str]
    [okulary.core :as l]
    [rumext.alpha :as mf]))
+
+
+(s/def ::item-name ::us/not-empty-string)
+(s/def ::create-group-form
+  (s/keys :req-un [::item-name]))
+
+(defn fold-items
+  [items]
+  (reduce (fn [folders item]
+              (update folders (or (:path item) "")
+                      #(conj (or % []) item)))
+          (sorted-map)
+          items))
+
+(mf/defc create-group-dialog
+  {::mf/register modal/components
+   ::mf/register-as :create-group-dialog}
+  [{:keys [create] :as ctx}]
+  (let [form  (fm/use-form :spec ::create-group-form
+                           :initial {})
+
+        close #(modal/hide!)
+
+        on-accept
+        (mf/use-callback
+         (mf/deps form)
+         (fn [event]
+           (let [item-name (get-in @form [:clean-data :item-name])]
+             (create item-name)
+             (modal/hide!))))]
+
+    [:div.modal-overlay
+     [:div.modal-container.confirm-dialog
+      [:div.modal-header
+       [:div.modal-header-title
+        [:h2 (tr "workspace.assets.create-group")]]
+       [:div.modal-close-button
+        {:on-click close} i/close]]
+
+      [:div.modal-content.generic-form
+       [:& fm/form {:form form}
+        [:& fm/input {:name :item-name
+                      :auto-focus? true
+                      :label (tr "workspace.assets.group-name")
+                      :hint (tr "workspace.assets.create-group-hint")}]]]
+
+      [:div.modal-footer
+       [:div.action-buttons
+        [:input.cancel-button
+         {:type "button"
+          :value (tr "labels.cancel")
+          :on-click close}]
+
+        [:input.accept-button.primary
+         {:type "button"
+          :class (when-not (:valid @form) "btn-disabled")
+          :disabled (not (:valid @form))
+          :value (tr "labels.create")
+          :on-click on-accept}]]]]]))
 
 (mf/defc components-box
   [{:keys [file-id local? components open?] :as props}]
@@ -50,7 +112,13 @@
                              :renaming nil
                              :top nil
                              :left nil
-                             :component-id nil})
+                             :component-id nil
+                             :selected #{}})
+
+        selected (:selected @state)
+
+        folders (fold-items components)
+        ;; _ (js/console.log "folders" (clj->js folders))
 
         on-duplicate
         (mf/use-callback
@@ -97,6 +165,77 @@
                         :left left
                         :component-id component-id))))))
 
+        unselect-all
+        (mf/use-callback
+          (fn [event]
+            (swap! state assoc :selected #{})))
+
+        toggle-select
+        (mf/use-callback
+          (fn [selected component-id]
+            (if (contains? selected component-id)
+              (disj selected component-id)
+              (conj selected component-id))))
+
+        extend-select
+        (mf/use-callback
+          (mf/deps folders)
+          (fn [selected component-id]
+            (let [components   (->> folders vals flatten)
+                  clicked-idx  (d/index-of-pred components #(= (:id %) component-id))
+                  selected-idx (->> selected
+                                   (map (fn [id] (d/index-of-pred components
+                                                                  #(= (:id %) id)))))
+                  min-idx      (apply min (conj selected-idx clicked-idx))
+                  max-idx      (apply max (conj selected-idx clicked-idx))]
+
+              (->> components
+                  d/enumerate
+                  (filter #(<= min-idx (first %) max-idx))
+                  (map #(-> % second :id))
+                  set))))
+
+        replace-select
+        (mf/use-callback
+          (fn [selected component-id]
+            #{component-id}))
+
+        on-select
+        (mf/use-callback
+         (fn [component-id]
+           (fn [event]
+             (dom/stop-propagation event)
+             (swap! state update :selected
+                    (fn [selected]
+                      (cond
+                        (kbd/ctrl? event)
+                        (toggle-select selected component-id)
+
+                        (kbd/shift? event)
+                        (extend-select selected component-id)
+
+                        :default
+                        (replace-select selected component-id)))))))
+
+        create-group
+        (mf/use-callback
+          (mf/deps components selected)
+          (fn [name]
+            (apply st/emit!
+                   (->> components
+                        (filter #(contains? selected (:id %)))
+                        (map #(dwl/rename-component
+                                (:id %)
+                                (str name " / "
+                                    (cp/merge-path-item (:path %) (:name %)))))))))
+
+        on-group
+        (mf/use-callback
+          (mf/deps components selected)
+          (fn [event]
+            (dom/stop-propagation event)
+            (modal/show! :create-group-dialog {:create create-group})))
+
         on-drag-start
         (mf/use-callback
          (fn [component event]
@@ -104,30 +243,48 @@
                                                     :component component})
            (dnd/set-allowed-effect! event "move")))]
 
-    [:div.asset-group
+    ;; (js/console.log "selected" (clj->js selected))
+    [:div.asset-group {:on-click unselect-all}
      [:div.group-title {:class (when (not open?) "closed")}
       [:span {:on-click (st/emitf (dwl/set-assets-box-open file-id :components (not open?)))}
        i/arrow-slide (tr "workspace.assets.components")]
       [:span (str "\u00A0(") (count components) ")"]] ;; Unicode 00A0 is non-breaking space
      (when open?
-       [:div.group-grid.big
-        (for [component components]
-          (let [renaming? (= (:renaming @state)(:id component))]
-            [:div.grid-cell {:key (:id component)
-                             :draggable true
-                             :on-context-menu (on-context-menu (:id component))
-                             :on-drag-start (partial on-drag-start component)}
-             [:& exports/component-svg {:group (get-in component [:objects (:id component)])
-                                        :objects (:objects component)}]
-             [:& editable-label
-              {:class-name (dom/classnames
-                             :cell-name true
-                             :editing renaming?)
-               :value (:name component)
-               :editing? renaming?
-               :disable-dbl-click? true
-               :on-change do-rename
-               :on-cancel cancel-rename}]]))])
+       (for [folder folders]
+         (let [path       (first folder)
+               components (second folder)]
+           [:*
+            (when-not (empty? path)
+              (let [[other-path last-path truncated] (cp/compact-path path 35)]
+                [:div.folder-title
+                 [:span i/arrow-slide]
+                 (when-not (empty? other-path)
+                   [:span.dim {:title (when truncated path)}
+                    other-path "\u00A0/\u00A0"])
+                 [:span {:title (when truncated path)}
+                  last-path]]))
+            [:div.group-grid.big
+             (for [component components]
+               (let [renaming? (= (:renaming @state)(:id component))]
+                 [:div.grid-cell {:key (:id component)
+                                  :class-name (dom/classnames
+                                                :selected (contains? selected (:id component)))
+                                  :draggable true
+                                  :on-click (on-select (:id component))
+                                  :on-context-menu (on-context-menu (:id component))
+                                  :on-drag-start (partial on-drag-start component)}
+                  [:& exports/component-svg {:group (get-in component [:objects (:id component)])
+                                             :objects (:objects component)}]
+                  [:& editable-label
+                   {:class-name (dom/classnames
+                                  :cell-name true
+                                  :editing renaming?)
+                    :value (cp/merge-path-item (:path component) (:name component))
+                    :display-value (:name component)
+                    :editing? renaming?
+                    :disable-dbl-click? true
+                    :on-change do-rename
+                    :on-cancel cancel-rename}]]))]])))
 
      (when local?
        [:& context-menu
@@ -136,9 +293,11 @@
          :on-close #(swap! state assoc :menu-open false)
          :top (:top @state)
          :left (:left @state)
-         :options [[(tr "workspace.assets.rename") on-rename]
+         :options [(when (<= (count selected) 1)
+                     [(tr "workspace.assets.rename") on-rename])
                    [(tr "workspace.assets.duplicate") on-duplicate]
-                   [(tr "workspace.assets.delete") on-delete]]}])]))
+                   [(tr "workspace.assets.delete") on-delete]
+                   [(tr "workspace.assets.group") on-group]]}])]))
 
 (mf/defc graphics-box
   [{:keys [file-id local? objects open?] :as props}]

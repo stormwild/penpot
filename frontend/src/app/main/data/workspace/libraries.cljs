@@ -291,6 +291,7 @@
             rchanges [{:type :add-component
                        :id (:id new-shape)
                        :name new-name
+                       :path (:path component)
                        :shapes new-shapes}]
 
             uchanges [{:type :del-component
