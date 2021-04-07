@@ -223,7 +223,9 @@
      v2-unit
      (point scalar-projection scalar-projection))))
 
-(defn center-points [points]
+(defn center-points
+  "Centroid of a group of points"
+  [points]
   (let [k (point (count points))]
     (reduce #(add %1 (divide %2 k)) (point) points)))
 
