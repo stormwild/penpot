@@ -358,7 +358,11 @@
 
 (defmethod process-change :mod-media
   [data {:keys [object]}]
-  (d/update-in-when data [:media (:id object)] merge object))
+  (let [[path name] (cph/parse-path-name (:name object))
+        object      (assoc object
+                           :name name
+                           :path path)]
+    (d/update-in-when data [:media (:id object)] merge object)))
 
 (defmethod process-change :del-media
   [data {:keys [id]}]
