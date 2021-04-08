@@ -358,11 +358,7 @@
 
 (defmethod process-change :mod-media
   [data {:keys [object]}]
-  (let [[path name] (cph/parse-path-name (:name object))
-        object      (assoc object
-                           :name name
-                           :path path)]
-    (d/update-in-when data [:media (:id object)] merge object)))
+  (d/update-in-when data [:media (:id object)] merge object))
 
 (defmethod process-change :del-media
   [data {:keys [id]}]
@@ -379,16 +375,17 @@
              :objects (d/index-by :id shapes)}))
 
 (defmethod process-change :mod-component
-  [data {:keys [id name objects]}]
-  (let [[path name] (cph/parse-path-name name)]
-    (update-in data [:components id]
-               #(cond-> %
+  [data {:keys [id name path objects]}]
+  (update-in data [:components id]
+             #(cond-> %
                   (some? name)
-                  (assoc :name name
-                         :path path)
+                  (assoc :name name)
+
+                  (some? path)
+                  (assoc :path path)
 
                   (some? objects)
-                  (assoc :objects objects)))))
+                  (assoc :objects objects))))
 
 (defmethod process-change :del-component
   [data {:keys [id]}]
