@@ -48,14 +48,16 @@
    [rumext.alpha :as mf]))
 
 
+;; ---- Asset groups management ----
+
 (s/def ::item-name ::us/not-empty-string)
 (s/def ::create-group-form
   (s/keys :req-un [::item-name]))
 
-(defn fold-items
+(defn group-items
   [items]
-  (reduce (fn [folders item]
-              (update folders (or (:path item) "")
+  (reduce (fn [groups item]
+              (update groups (or (:path item) "")
                       #(conj (or % []) item)))
           (sorted-map)
           items))
@@ -106,6 +108,9 @@
           :value (tr "labels.create")
           :on-click on-accept}]]]]]))
 
+
+; ---- Components box ----
+
 (mf/defc components-box
   [{:keys [file-id local? components open?] :as props}]
   (let [state (mf/use-state {:menu-open false
@@ -117,8 +122,8 @@
 
         selected (:selected @state)
 
-        folders (fold-items components)
-        ;; _ (js/console.log "folders" (clj->js folders))
+        groups (group-items components)
+        ;; _ (js/console.log "groups" (clj->js groups))
 
         on-duplicate
         (mf/use-callback
@@ -179,9 +184,9 @@
 
         extend-select
         (mf/use-callback
-          (mf/deps folders)
+          (mf/deps groups)
           (fn [selected component-id]
-            (let [components   (->> folders vals flatten)
+            (let [components   (->> groups vals flatten)
                   clicked-idx  (d/index-of-pred components #(= (:id %) component-id))
                   selected-idx (->> selected
                                    (map (fn [id] (d/index-of-pred components
@@ -244,26 +249,26 @@
            (dnd/set-allowed-effect! event "move")))]
 
     ;; (js/console.log "selected" (clj->js selected))
-    [:div.asset-group {:on-click unselect-all}
-     [:div.group-title {:class (when (not open?) "closed")}
+    [:div.asset-section {:on-click unselect-all}
+     [:div.asset-title {:class (when (not open?) "closed")}
       [:span {:on-click (st/emitf (dwl/set-assets-box-open file-id :components (not open?)))}
        i/arrow-slide (tr "workspace.assets.components")]
       [:span (str "\u00A0(") (count components) ")"]] ;; Unicode 00A0 is non-breaking space
      (when open?
-       (for [folder folders]
-         (let [path       (first folder)
-               components (second folder)]
+       (for [group groups]
+         (let [path       (first group)
+               components (second group)]
            [:*
             (when-not (empty? path)
               (let [[other-path last-path truncated] (cp/compact-path path 35)]
-                [:div.folder-title
+                [:div.group-title
                  [:span i/arrow-slide]
                  (when-not (empty? other-path)
                    [:span.dim {:title (when truncated path)}
                     other-path "\u00A0/\u00A0"])
                  [:span {:title (when truncated path)}
                   last-path]]))
-            [:div.group-grid.big
+            [:div.asset-grid.big
              (for [component components]
                (let [renaming? (= (:renaming @state)(:id component))]
                  [:div.grid-cell {:key (:id component)
@@ -299,6 +304,9 @@
                    [(tr "workspace.assets.delete") on-delete]
                    [(tr "workspace.assets.group") on-group]]}])]))
 
+
+; ---- Graphics box ----
+
 (mf/defc graphics-box
   [{:keys [file-id local? objects open?] :as props}]
   (let [input-ref  (mf/use-ref nil)
@@ -307,6 +315,9 @@
                                   :top nil
                                   :left nil
                                   :object-id nil})
+
+        groups (group-items objects)
+        ;; _ (js/console.log "groups" (clj->js groups))
 
         add-graphic
         (mf/use-callback
@@ -376,20 +387,20 @@
            (dnd/set-data! event "text/asset-type" mtype)
            (dnd/set-allowed-effect! event "move")))]
 
-    [:div.asset-group
-     [:div.group-title {:class (when (not open?) "closed")}
+    [:div.asset-section
+     [:div.asset-title {:class (when (not open?) "closed")}
       [:span {:on-click (st/emitf (dwl/set-assets-box-open file-id :graphics (not open?)))}
        i/arrow-slide (tr "workspace.assets.graphics")]
       [:span.num-assets (str "\u00A0(") (count objects) ")"] ;; Unicode 00A0 is non-breaking space
       (when local?
-        [:div.group-button {:on-click add-graphic}
+        [:div.assets-button {:on-click add-graphic}
          i/plus
          [:& file-uploader {:accept cm/str-media-types
                             :multi true
                             :input-ref input-ref
                             :on-selected on-selected}]])]
      (when open?
-       [:div.group-grid
+       [:div.asset-grid
         (for [object objects]
           [:div.grid-cell {:key (:id object)
                            :draggable true
@@ -419,6 +430,9 @@
             :left (:left @state)
             :options [[(tr "workspace.assets.rename") on-rename]
                       [(tr "workspace.assets.delete") on-delete]]}])])]))
+
+
+; ---- Colors box ----
 
 (mf/defc color-item
   [{:keys [color local? file-id locale] :as props}]
@@ -505,7 +519,7 @@
            (dom/select-text! input))
          nil))
 
-    [:div.group-list-item {:on-context-menu on-context-menu}
+    [:div.asset-list-item {:on-context-menu on-context-menu}
      [:& bc/color-bullet {:color color
                           :on-click click-color}]
 
@@ -555,15 +569,15 @@
                          :data {:color "#406280"
                                 :opacity 1}
                          :position :right})))]
-    [:div.asset-group
-     [:div.group-title {:class (when (not open?) "closed")}
+    [:div.asset-section
+     [:div.asset-title {:class (when (not open?) "closed")}
       [:span {:on-click (st/emitf (dwl/set-assets-box-open file-id :colors (not open?)))}
        i/arrow-slide (t locale "workspace.assets.colors")]
       [:span.num-assets (str "\u00A0(") (count colors) ")"] ;; Unicode 00A0 is non-breaking space
       (when local?
-        [:div.group-button {:on-click add-color-clicked} i/plus])]
+        [:div.assets-button {:on-click add-color-clicked} i/plus])]
      (when open?
-       [:div.group-list
+       [:div.asset-list
         (for [color colors]
           (let [color (cond-> color
                         (:value color) (assoc :color (:value color) :opacity 1)
@@ -574,6 +588,9 @@
                             :file-id file-id
                             :local? local?
                             :locale locale}]))])]))
+
+
+; ---- Typography box ----
 
 (mf/defc typography-box
   [{:keys [file file-id local? typographies locale open?] :as props}]
@@ -648,13 +665,13 @@
        (when (:edit-typography local)
          (st/emit! #(update % :workspace-local dissoc :edit-typography)))))
 
-    [:div.asset-group
-     [:div.group-title {:class (when (not open?) "closed")}
+    [:div.asset-section
+     [:div.asset-title {:class (when (not open?) "closed")}
       [:span {:on-click (st/emitf (dwl/set-assets-box-open file-id :typographies (not open?)))}
        i/arrow-slide (t locale "workspace.assets.typography")]
       [:span.num-assets (str "\u00A0(") (count typographies) ")"] ;; Unicode 00A0 is non-breaking space
       (when local?
-        [:div.group-button {:on-click add-typography} i/plus])]
+        [:div.assets-button {:on-click add-typography} i/plus])]
 
      [:& context-menu
       {:selectable false
@@ -666,7 +683,7 @@
                  [(t locale "workspace.assets.edit") handle-edit-typography-clicked]
                  [(t locale "workspace.assets.delete") handle-delete-typography]]}]
      (when open?
-       [:div.group-list
+       [:div.asset-list
         (for [typography (sort-by :ts typographies)]
           [:& typography-entry
            {:key (:id typography)
@@ -678,6 +695,9 @@
             :on-select #(handle-typography-selection typography)
             :editting? (= editting-id (:id typography))
             :focus-name? (= (:rename-typography local) (:id typography))}])])]))
+
+
+; --- Assets toolbox ----
 
 (defn file-colors-ref
   [id]
@@ -824,8 +844,8 @@
                                 :open? (open-box? :typographies)}])
 
           (when (and (not show-components?) (not show-graphics?) (not show-colors?))
-            [:div.asset-group
-             [:div.group-title (t locale "workspace.assets.not-found")]])]))]))
+            [:div.asset-section
+             [:div.asset-title (t locale "workspace.assets.not-found")]])]))]))
 
 
 (mf/defc assets-toolbox
