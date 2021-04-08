@@ -468,7 +468,8 @@
   Retrieve the path and the name in separated values, normalizing spaces."
   [path-name]
   (let [path-name-split (->> (str/split path-name "/")
-                             (map str/trim))
+                             (map str/trim)
+                             (remove str/empty?))
         path (str/join " / " (butlast path-name-split))
         name (last path-name-split)]
     [path name]))

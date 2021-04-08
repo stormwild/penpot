@@ -94,6 +94,14 @@
           (sorted-map)
           assets))
 
+(def empty-folded-groups #{})
+
+(defn toggle-folded-group
+  [folded-groups path]
+  (if (contains? folded-groups path)
+    (disj folded-groups path)
+    (conj folded-groups path)))
+
 (mf/defc create-group-dialog
   {::mf/register modal/components
    ::mf/register-as :create-group-dialog}
@@ -150,12 +158,12 @@
                              :top nil
                              :left nil
                              :component-id nil
-                             :selected empty-selection})
+                             :selected empty-selection
+                             :folded-groups empty-folded-groups})
 
-        selected (:selected @state)
-
-        groups (group-assets components)
-        ;; _ (js/console.log "groups" (clj->js groups))
+        groups        (group-assets components)
+        selected      (:selected @state)
+        folded-groups (:folded-groups @state)
 
         on-duplicate
         (mf/use-callback
@@ -229,6 +237,7 @@
         (mf/use-callback
           (mf/deps components selected)
           (fn [name]
+            (swap! state assoc :selected empty-selection)
             (st/emit! (dwc/start-undo-transaction))
             (apply st/emit!
                    (->> components
@@ -238,6 +247,15 @@
                                 (str name " / "
                                     (cp/merge-path-item (:path %) (:name %)))))))
             (st/emit! (dwc/commit-undo-transaction))))
+
+        on-fold-group
+        (mf/use-callback
+          (mf/deps groups folded-groups)
+          (fn [path]
+            (fn [event]
+              (dom/stop-propagation event)
+              (swap! state update :folded-groups 
+                     toggle-folded-group path))))
 
         on-group
         (mf/use-callback
@@ -253,7 +271,6 @@
                                                     :component component})
            (dnd/set-allowed-effect! event "move")))]
 
-    ;; (js/console.log "selected" (clj->js selected))
     [:div.asset-section {:on-click unselect-all}
      [:div.asset-title {:class (when (not open?) "closed")}
       [:span {:on-click (st/emitf (dwl/set-assets-box-open file-id :components (not open?)))}
@@ -261,40 +278,43 @@
       [:span (str "\u00A0(") (count components) ")"]] ;; Unicode 00A0 is non-breaking space
      (when open?
        (for [group groups]
-         (let [path       (first group)
-               components (second group)]
+         (let [path        (first group)
+               components  (second group)
+               group-open? (not (contains? folded-groups path))]
            [:*
             (when-not (empty? path)
               (let [[other-path last-path truncated] (cp/compact-path path 35)]
-                [:div.group-title
+                [:div.group-title {:class (when-not group-open? "closed")
+                                   :on-click (on-fold-group path)}
                  [:span i/arrow-slide]
                  (when-not (empty? other-path)
                    [:span.dim {:title (when truncated path)}
                     other-path "\u00A0/\u00A0"])
                  [:span {:title (when truncated path)}
                   last-path]]))
-            [:div.asset-grid.big
-             (for [component components]
-               (let [renaming? (= (:renaming @state)(:id component))]
-                 [:div.grid-cell {:key (:id component)
-                                  :class-name (dom/classnames
-                                                :selected (contains? selected (:id component)))
-                                  :draggable true
-                                  :on-click (on-select (:id component))
-                                  :on-context-menu (on-context-menu (:id component))
-                                  :on-drag-start (partial on-drag-start component)}
-                  [:& exports/component-svg {:group (get-in component [:objects (:id component)])
-                                             :objects (:objects component)}]
-                  [:& editable-label
-                   {:class-name (dom/classnames
-                                  :cell-name true
-                                  :editing renaming?)
-                    :value (cp/merge-path-item (:path component) (:name component))
-                    :display-value (:name component)
-                    :editing? renaming?
-                    :disable-dbl-click? true
-                    :on-change do-rename
-                    :on-cancel cancel-rename}]]))]])))
+            (when group-open?
+              [:div.asset-grid.big
+               (for [component components]
+                 (let [renaming? (= (:renaming @state)(:id component))]
+                   [:div.grid-cell {:key (:id component)
+                                    :class-name (dom/classnames
+                                                  :selected (contains? selected (:id component)))
+                                    :draggable true
+                                    :on-click (on-select (:id component))
+                                    :on-context-menu (on-context-menu (:id component))
+                                    :on-drag-start (partial on-drag-start component)}
+                    [:& exports/component-svg {:group (get-in component [:objects (:id component)])
+                                               :objects (:objects component)}]
+                    [:& editable-label
+                     {:class-name (dom/classnames
+                                    :cell-name true
+                                    :editing renaming?)
+                      :value (cp/merge-path-item (:path component) (:name component))
+                      :display-value (:name component)
+                      :editing? renaming?
+                      :disable-dbl-click? true
+                      :on-change do-rename
+                      :on-cancel cancel-rename}]]))])])))
 
      (when local?
        [:& context-menu
@@ -320,12 +340,12 @@
                                   :top nil
                                   :left nil
                                   :object-id nil
-                                  :selected empty-selection})
+                                  :selected empty-selection
+                                  :folded-groups empty-folded-groups})
 
-        selected (:selected @state)
-
-        groups (group-assets objects)
-        ;; _ (js/console.log "groups" (clj->js groups))
+        groups        (group-assets objects)
+        selected      (:selected @state)
+        folded-groups (:folded-groups @state)
 
         add-graphic
         (mf/use-callback
@@ -414,6 +434,7 @@
         (mf/use-callback
           (mf/deps objects selected)
           (fn [name]
+            (swap! state assoc :selected empty-selection)
             (st/emit! (dwc/start-undo-transaction))
             (apply st/emit!
                    (->> objects
@@ -423,6 +444,15 @@
                                 (str name " / "
                                     (cp/merge-path-item (:path %) (:name %)))))))
             (st/emit! (dwc/commit-undo-transaction))))
+
+        on-fold-group
+        (mf/use-callback
+          (mf/deps groups folded-groups)
+          (fn [path]
+            (fn [event]
+              (dom/stop-propagation event)
+              (swap! state update :folded-groups 
+                     toggle-folded-group path))))
 
         on-group
         (mf/use-callback
@@ -453,42 +483,45 @@
                             :on-selected on-selected}]])]
      (when open?
        (for [group groups]
-         (let [path    (first group)
-               objects (second group)]
+         (let [path        (first group)
+               objects     (second group)
+               group-open? (not (contains? folded-groups path))]
            [:*
             (when-not (empty? path)
               (let [[other-path last-path truncated] (cp/compact-path path 35)]
-                [:div.group-title
+                [:div.group-title {:class (when-not group-open? "closed")
+                                   :on-click (on-fold-group path)}
                  [:span i/arrow-slide]
                  (when-not (empty? other-path)
                    [:span.dim {:title (when truncated path)}
                     other-path "\u00A0/\u00A0"])
                  [:span {:title (when truncated path)}
                   last-path]]))
-            [:div.asset-grid
-             (for [object objects]
-               [:div.grid-cell {:key (:id object)
-                                :class-name (dom/classnames
-                                              :selected (contains? selected (:id object)))
-                                :draggable true
-                                :on-click (on-select (:id object))
-                                :on-context-menu (on-context-menu (:id object))
-                                :on-drag-start (partial on-drag-start object)}
-                [:img {:src (cfg/resolve-file-media object true)
-                       :draggable false}] ;; Also need to add css pointer-events: none
+            (when group-open?
+              [:div.asset-grid
+               (for [object objects]
+                 [:div.grid-cell {:key (:id object)
+                                  :class-name (dom/classnames
+                                                :selected (contains? selected (:id object)))
+                                  :draggable true
+                                  :on-click (on-select (:id object))
+                                  :on-context-menu (on-context-menu (:id object))
+                                  :on-drag-start (partial on-drag-start object)}
+                  [:img {:src (cfg/resolve-file-media object true)
+                         :draggable false}] ;; Also need to add css pointer-events: none
 
-                #_[:div.cell-name (:name object)]
-                (let [renaming? (= (:renaming @state) (:id object))]
-                  [:& editable-label
-                   {:class-name (dom/classnames
-                                  :cell-name true
-                                  :editing renaming?)
-                    :value (cp/merge-path-item (:path object) (:name object))
-                    :display-value (:name object)
-                    :editing? renaming?
-                    :disable-dbl-click? true
-                    :on-change do-rename
-                    :on-cancel cancel-rename}])])]])))
+                  #_[:div.cell-name (:name object)]
+                  (let [renaming? (= (:renaming @state) (:id object))]
+                    [:& editable-label
+                     {:class-name (dom/classnames
+                                    :cell-name true
+                                    :editing renaming?)
+                      :value (cp/merge-path-item (:path object) (:name object))
+                      :display-value (:name object)
+                      :editing? renaming?
+                      :disable-dbl-click? true
+                      :on-change do-rename
+                      :on-cancel cancel-rename}])])])])))
 
      (when local?
        [:& context-menu
