@@ -73,7 +73,7 @@
     "sass": "^1.66.1",
     "shadow-cljs": "2.26.2",
     "storybook": "^7.5.3",
-    "vite": "^5.0.2"
+    "vite": "^5.0.5"
   },
   "dependencies": {
     "date-fns": "^2.30.0",
